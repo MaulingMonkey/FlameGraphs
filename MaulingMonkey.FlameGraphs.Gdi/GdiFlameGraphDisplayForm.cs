@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Text;
 using System.Threading;
@@ -118,11 +119,12 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 						if (cursorHovering)
 						{
 							var desc = new StringBuilder();
-							desc.AppendLine(fb.Text);
 
-														desc.AppendFormat("Caller:  {0}\n", e.Caller.Member);
-							if (e.Caller.Column != 0)	desc.AppendFormat("File:    {0}({1},{2})\n",	e.Caller.File, e.Caller.Line, e.Caller.Column);
-							else						desc.AppendFormat("File:    {0}({1})\n",		e.Caller.File, e.Caller.Line);
+														desc.AppendFormat("Label:     {0}\n",			e.Label);
+														desc.AppendFormat("Caller:    {0}\n",			e.Caller.Member);
+							if (e.Caller.Column != 0)	desc.AppendFormat("File:      {0}({1},{2})\n",	e.Caller.File, e.Caller.Line, e.Caller.Column);
+							else						desc.AppendFormat("File:      {0}({1})\n",		e.Caller.File, e.Caller.Line);
+							if (e.Start != e.Stop)		desc.AppendFormat("Duration:  {0}\n",			ToShortTime(e.Duration));
 
 							if (e.Caller.StackTrace != null)
 							{
@@ -169,6 +171,20 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 					TextFormatFlags	= TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.ExpandTabs,
 				});
 			});
+		}
+
+		static string ToShortTime(long ticks)
+		{
+			var freq = Stopwatch.Frequency;
+			var s  = ticks * 1 / freq;
+			var ms = ticks * 1000 / freq;
+			var us = ticks * 1000000 / freq;
+			var ns = ticks * 1000000000 / freq;
+
+			if (s  > 9)	return (s .ToString("N0")+"s ").PadLeft(5+2, ' ');
+			if (ms > 9)	return (ms.ToString("N0")+"ms").PadLeft(5+2, ' ');
+			if (us > 9)	return (us.ToString("N0")+"us").PadLeft(5+2, ' ');
+						return (ns.ToString("N0")+"ns").PadLeft(5+2, ' ');
 		}
 
 		protected override void OnPaint(PaintEventArgs e)

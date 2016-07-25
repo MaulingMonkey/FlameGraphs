@@ -83,6 +83,63 @@ namespace MaulingMonkey.FlameGraphs
 			MaybeSyncLastTrace(cti);
 		}
 
+		public static DisposeScope Scope
+			( string label
+#if !NET20
+			, [CallerMemberName]	string member = null
+			, [CallerFilePath]		string file = null
+			, [CallerLineNumber]	int line = 0
+#endif
+			)
+		{
+			var cti = CurrentThreadInfo;
+			var traceI = cti.CurrentTrace.Count;
+			var depth = cti.CurrentDepth++;
+			if (depth > cti.CurrentMaxDepth) cti.CurrentMaxDepth = depth;
+			var stackTrace = cti.CurrentForceStacks ? new StackTrace(true) : null; // We don't skip any frames in case Scope is inlined.
+			var te = new TraceEntry()
+			{
+				LabelPayload	= label,
+#if !NET20
+				Caller			= new CallSite(member, file, line, stackTrace),
+#else
+				Caller			= new CallSite(stackTrace),
+#endif
+				Depth			= depth,
+			};
+			cti.CurrentTrace.Add(te);
+
+			te.Start = Stopwatch.GetTimestamp();
+			return new DisposeScope(cti, traceI, te);
+		}
+
+		public struct DisposeScope : IDisposable
+		{
+			readonly ThreadInfo	CTI;
+			readonly int		TraceI;
+			readonly TraceEntry	TraceEntry;
+
+			internal DisposeScope(ThreadInfo cti, int traceI, TraceEntry te)
+			{
+				CTI			= cti;
+				TraceI		= traceI;
+				TraceEntry	= te;
+			}
+
+			public void Dispose()
+			{
+				var stop = Stopwatch.GetTimestamp();
+
+				var cti	= CTI;
+				var te	= TraceEntry;
+				te.Stop = stop;
+
+				--cti.CurrentDepth;
+				cti.CurrentTrace[TraceI] = te;
+				MaybeSyncLastTrace(cti);
+			}
+		}
+
 		internal static IEnumerable<ThreadInfo> Threads { get {
 			lock (Mutex) return AllThreadInfos.ToArray();
 		} }

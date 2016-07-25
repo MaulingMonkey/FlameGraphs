@@ -23,17 +23,17 @@ namespace Example
 
 		static void RandomlySleep2()
 		{
-			Trace.Scope("B", () => {
+			using (Trace.Scope("B")) {
 				if (PRNG.Next(10) == 0) Thread.Sleep(50);
-			});
+			};
 		}
 
 		static void ProfiledThread()
 		{
-			for (;;) Trace.Scope("C", () => {
+			for (;;) using (Trace.Scope("C")) {
 				for (int i=0; i<10; ++i) RandomlySleep1();
 				for (int i=0; i<10; ++i) RandomlySleep2();
-			});
+			}
 		}
 
 		/// <summary>
