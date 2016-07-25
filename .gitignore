@@ -1,0 +1,8 @@
+Thumbs.db
+*.suo
+*.user
+*.sdf
+*.opensdf
+obj/
+bin/
+.vs/
