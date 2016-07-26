@@ -20,7 +20,9 @@
 
 ## Screenshots
 
-![Screenshot](.projnfo/screenshots/1.png "Screenshot")
+![F1 Cheat Sheet](.projnfo/screenshots/cheat.png "F1 Cheat Sheet")
+![Example Screenshot](.projnfo/screenshots/1.png "Example Screenshot")
+![Real 'V' Screenshot](.projnfo/screenshots/2.png "Real 'V' Screenshot")
 
 ## License
 
