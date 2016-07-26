@@ -3,11 +3,8 @@
 // See the LICENSE.txt file in the project root for more information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Text;
-using System.Threading;
 using System.Windows.Forms;
 
 namespace MaulingMonkey.FlameGraphs.Gdi
@@ -53,16 +50,11 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 		{
 			switch (e.KeyData)
 			{
-			case Keys.Space:
-			case Keys.Pause:
-				UpdatingFlameBars ^= true;
-				break;
-			case Keys.F1:
-				HelpOverlay ^= true;
-				break;
-			case Keys.F2:
-				FullStacks ^= true;
-				break;
+			case Keys.Space:	UpdatingFlameBars ^= true; break;
+			case Keys.Pause:	UpdatingFlameBars ^= true; break;
+			case Keys.F1:		HelpOverlay ^= true; break;
+			case Keys.F2:		FullStacks ^= true; break;
+			case Keys.F3:		KeepWorst ^= true; break;
 			}
 			base.OnKeyDown(e);
 		}
@@ -72,121 +64,13 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 			Invalidate();
 		}
 
-		// Note: We prepare layout seperately from actually rendering it to minimize the amount of time spent with thread.Mutex locked (e.g. not having GDI rendering overhead counting against it.)
-		bool UpdatingFlameBars = true;
-		bool HelpOverlay = false;
-		bool FullStacks = false;
-		struct TextRect { public string Text; public Rectangle Area; public int Padding; public Color TextColor, FillColor, OutlineColor; public TextFormatFlags TextFormatFlags; }
-		readonly List<TextRect> TextRects = new List<TextRect>();
-		long MaxDuration = 1;
-		void UpdateFlameBars()
-		{
-			if (UpdatingFlameBars)
-			Trace.Scope("Update Flame Bars", () =>
-			{
-				var threads = Trace.Threads;
-				var formPadX = 5;
-				var formPadY = 5;
-				var formW = ClientSize.Width-2*formPadX;
-				var formH = ClientSize.Height-2*formPadY;
-				var barH = 12;
-				var barHPad = 4;
-				var y = formPadY;
+		new readonly Layout Layout = new Layout();
 
-				TextRect? hover = null;
-
-				TextRects.Clear();
-				foreach (var thread in threads)
-				lock (thread.Mutex)
-				if (thread.LastTrace.Count > 0)
-				{
-					// Headers
-					TextRects.Add(new TextRect() { Text = string.Format("Thread: {0}", thread.Thread == Thread.CurrentThread ? "Main Thread" : thread.Thread.Name ?? "<No Name>"), Area = new Rectangle(formPadX, y, 500, barH), FillColor = Color.DarkGray, TextColor = Color.White, OutlineColor = Color.DarkGray });
-					y += barH + barHPad;
-
-					// Bars
-					var top = thread.LastTrace[0];
-					var duration = MaxDuration = Math.Max(MaxDuration, top.Duration);
-					y += (thread.LastMaxDepth+1) * (barH + barHPad);
-
-					foreach (var e in thread.LastTrace)
-					{
-						var l = formPadX + (int)((e.Start - top.Start) * formW / duration);
-						var r = formPadX + (int)((e.Stop  - top.Start) * formW / duration);
-						var b =                  (y - (e.Depth * (barH + barHPad)));
-						var t =                  (b - barH);
-
-						var area			= Rectangle.FromLTRB(l,t,r,b);
-						var cursorPos		= PointToClient(Cursor.Position);
-						var cursorHovering	= area.Contains(cursorPos);
-
-						var fb = new TextRect()
-						{
-							Text			= !string.IsNullOrEmpty(e.Caller.Member) ? string.Format("{0} ({1})", e.Label ?? "", e.Caller.Member) : e.Label,
-							Area			= area,
-							TextColor		= Color.Black,
-							FillColor		= cursorHovering ? Color.Yellow : Color.Orange,
-							OutlineColor	= cursorHovering ? Color.Orange : Color.OrangeRed,
-							TextFormatFlags	= TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix,
-						};
-						TextRects.Add(fb);
-
-						if (cursorHovering)
-						{
-							var desc = new StringBuilder();
-
-														desc.AppendFormat("Label:     {0}\n",			e.Label);
-														desc.AppendFormat("Caller:    {0}\n",			e.Caller.Member);
-							if (e.Caller.Column != 0)	desc.AppendFormat("File:      {0}({1},{2})\n",	e.Caller.File, e.Caller.Line, e.Caller.Column);
-							else						desc.AppendFormat("File:      {0}({1})\n",		e.Caller.File, e.Caller.Line);
-							if (e.Start != e.Stop)		desc.AppendFormat("Duration:  {0}\n",			ToShortTime(e.Duration));
-
-							if (e.Caller.StackTrace != null)
-							{
-								desc.AppendLine();
-								desc.AppendLine("Trace:");
-								foreach (var frame in e.Caller.StackTrace.GetFrames())
-								{
-									var m	= string.Format("{0}.{1}+{2}", frame.GetMethod().DeclaringType.FullName, frame.GetMethod().Name, frame.GetNativeOffset());
-									var cs	= string.IsNullOrEmpty(frame.GetFileName()) ? "<unknown>" : string.Format("{0}({1},{2})", frame.GetFileName(), frame.GetFileLineNumber(), frame.GetFileColumnNumber());
-									desc.AppendFormat("    {0} @ {1}\n", m.PadRight(60, ' '), cs);
-								}
-								desc.AppendLine();
-							}
-
-							hover = new TextRect()
-							{
-								Text			= desc.ToString().TrimEnd('\r', '\n'),
-								Area			= new Rectangle(cursorPos.X + Cursor.Size.Width, cursorPos.Y + Cursor.Size.Height, 0, 0),
-								Padding			= 5,
-								FillColor		= Color.Black,
-								OutlineColor	= Color.White,
-								TextColor		= Color.White,
-								TextFormatFlags	= TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.ExpandTabs,
-							};
-						}
-					}
-
-					y += barHPad;
-				}
-
-				if (hover != null) TextRects.Add(hover.Value);
-				if (HelpOverlay) TextRects.Add(new TextRect()
-				{
-					Text
-						= "[F1]               Toggle this help display\n"
-						+ "[F2]               Toggle capturing of full stack traces\n"
-						+ "[Space] [Pause]    Toggle updating of the flame graph\n"
-						.TrimEnd('\n'),
-					Area			= new Rectangle(10,10,0,0),
-					FillColor		= Color.DarkBlue,
-					TextColor		= Color.White,
-					OutlineColor	= Color.Black,
-					Padding			= 5,
-					TextFormatFlags	= TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.ExpandTabs,
-				});
-			});
-		}
+		bool UpdatingFlameBars	= true;
+		bool HelpOverlay		= false;
+		bool FullStacks			= false;
+		bool KeepWorst			= false;
+		long MaxDuration		= 1;
 
 		static string ToShortTime(long ticks)
 		{
@@ -202,40 +86,64 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 						return (ns.ToString("N0")+"ns").PadLeft(5+2, ' ');
 		}
 
+		const uint Black		= 0xFF000000u;
+		const uint DarkBlue		= 0xFF000080u;
+
+		void RenderRect(Graphics fx, Layout.TextRect rect)
+		{
+			var font = Font;
+			var textFormatFlags = TextFormatFlags.Default;
+			var textArea = rect.Area;
+			if (textArea.Size == XY.Zero) {
+				var s = TextRenderer.MeasureText(fx, rect.Text, font, new Size(10000,10000), textFormatFlags);
+				textArea = Rect.LTWH(textArea.LeftTop, new XY(s.Width, s.Height));
+			}
+			var bgArea = textArea.Inflated(rect.Padding);
+
+			if (rect.FillArgb != 0) using (var fill = new SolidBrush(Color.FromArgb(unchecked((int)rect.FillArgb)))) fx.FillRectangle(fill, bgArea.Left, bgArea.Top, bgArea.Width, bgArea.Height);
+			if (rect.TextArgb != 0) TextRenderer.DrawText(fx, rect.Text, font, new Rectangle(textArea.Left, textArea.Top, textArea.Width, textArea.Height), Color.FromArgb(unchecked((int)rect.TextArgb)), Color.Transparent, textFormatFlags);
+			if (rect.OutlineArgb != 0) using (var outline = new Pen(Color.FromArgb(unchecked((int)rect.OutlineArgb)))) fx.DrawRectangle(outline, new Rectangle(bgArea.Left, bgArea.Top, bgArea.Width, bgArea.Height));
+		}
+
 		protected override void OnPaint(PaintEventArgs e)
 		{
 			Trace.Scope("OnPaint", () =>
 			{
 				foreach (var thread in Trace.Threads) lock (thread.Mutex) thread.ConfigForceStacks = FullStacks; // XXX: Awkward place for this.
 
-				var font = Font;
+				using (Trace.Scope("Layout.Update")) if (UpdatingFlameBars) Layout.Update(Trace.Threads, KeepWorst ? Layout.UpdateFlags.KeepThreadWorst : Layout.UpdateFlags.Default);
+				MaxDuration = Math.Max(MaxDuration, Layout.Duration);
 
-				UpdateFlameBars();
-				//using (var fx = e.Graphics)
+				var cursor = PointToClient(Cursor.Position);
+
 				var fx = e.Graphics;
+				fx.Clear(Color.DarkGray);
+
+				using (Trace.Scope("Layout.Render"))
+				Layout.Render(new Layout.RenderArgs()
 				{
-					fx.Clear(Color.DarkGray);
+					Cursor = new XY(cursor.X, cursor.Y),
+					DurationX = 0,
+					DurationW = MaxDuration,
+					Target = Rect.LTWH(0,0,ClientSize.Width,ClientSize.Height),
+					RenderRect = rect => RenderRect(fx, rect),
+				});
 
-					foreach (var tr in TextRects)
-					using (var outline	= new Pen(tr.OutlineColor))
-					using (var fill		= new SolidBrush(tr.FillColor))
-					{
-						var textArea = tr.Area;
-						if (textArea.Size.IsEmpty) {
-							var s = TextRenderer.MeasureText(fx, tr.Text, font, new Size(10000,10000), tr.TextFormatFlags);
-							// TextRenderer.MeasureText underestimates
-							//s.Width += 5;
-							//s.Height += 5;
-							textArea.Size = s;
-						}
-						var bgArea = textArea;
-						bgArea.Inflate(tr.Padding, tr.Padding);
+				if (HelpOverlay) RenderRect(fx, new Layout.TextRect()
+				{
+					Text
+						= "[F1]               Toggle this help display\n"
+						+ "[F2]               Toggle capturing of full stack traces\n"
+						+ "[F3]               Toggle between keeping the worst capture of a thread and the most recent\n"
+						+ "[Space] [Pause]    Toggle updating of the flame graph\n"
+						.TrimEnd('\n'),
+					Area			= Rect.LTWH(10,10,0,0),
+					FillArgb		= DarkBlue,
+					TextArgb		= 0xFFFFFFFFu,
+					OutlineArgb		= Black,
+					Padding			= 5,
+				});
 
-						fx.FillRectangle(fill, bgArea);
-						TextRenderer.DrawText(fx, tr.Text, font, textArea, tr.TextColor, tr.FillColor, tr.TextFormatFlags);
-						fx.DrawRectangle(outline, bgArea);
-					}
-				}
 				base.OnPaint(e);
 			});
 		}

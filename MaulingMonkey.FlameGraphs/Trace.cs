@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -26,6 +27,32 @@ namespace MaulingMonkey.FlameGraphs
 		public int							CurrentDepth		= 0;
 		public int							CurrentMaxDepth		= 0;
 		public bool							CurrentForceStacks	= false;
+	}
+
+	[DebuggerDisplay("{ThreadName} - {Trace.Count} trace")]
+	internal class ThreadTraceCapture
+	{
+		public readonly List<TraceEntry>	Trace = new List<TraceEntry>();
+		public string						ThreadName	{ get; private set; }
+		public Thread						Thread		{ get; private set; }
+		public int							MaxDepth	{ get; private set; }
+
+		public ThreadTraceCapture(ThreadInfo info)
+		{
+			Reset(info);
+		}
+
+		public void Reset(ThreadInfo info)
+		{
+			lock (info.Mutex)
+			{
+				Trace.Clear();
+				Trace.AddRange(info.LastTrace);
+				ThreadName	= info.Thread.Name;
+				Thread		= info.Thread;
+				MaxDepth	= info.LastMaxDepth;
+			}
+		}
 	}
 
 	public static class Trace
@@ -152,6 +179,8 @@ namespace MaulingMonkey.FlameGraphs
 			{
 				lock (cti.Mutex)
 				{
+					Debug.Assert(cti.CurrentTrace.FirstOrDefault().Duration != 0);
+
 					// Shuffle: Configuration -> CurrentTrace -> LastTrace
 					cti.LastTrace.Clear();
 					cti.LastTrace.AddRange(cti.CurrentTrace);
