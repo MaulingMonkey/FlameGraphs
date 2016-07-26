@@ -4,7 +4,7 @@
 
 - [x] Update hover boxes when main capture is paused
 - [ ] Display time scales
-- [ ] Add zoom in/out controls
+- [x] Add zoom in/out controls
 - [ ] Better support threads which don't have a clear repeating root element
 - [ ] Between frame sampling "persistence"
 - [ ] Backport to support .NET 2.0 / VS2008

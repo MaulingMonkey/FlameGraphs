@@ -65,6 +65,64 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 			base.OnKeyDown(e);
 		}
 
+		protected override void OnMouseWheel(MouseEventArgs e)
+		{
+			// +120 = up
+			// -120 = down
+
+			var scale = Math.Pow(1.5, -e.Delta / 120.0);
+			DurationW = (long)(scale * DurationW);
+			if (DurationW < 10) DurationW = 10;
+			if (DurationW > MaxDurationW) DurationW = MaxDurationW;
+
+			var play = MaxDurationW - DurationW;
+			if (DurationX <    0) DurationX = 0;
+			if (DurationX > play) DurationX = play;
+
+			base.OnMouseWheel(e);
+		}
+
+		Action<Point> MiddleDrag = null;
+
+		protected override void OnMouseDown(MouseEventArgs e)
+		{
+			switch (e.Button)
+			{
+			case MouseButtons.Middle:
+				var startCursor = e.Location;
+				var startX = DurationX;
+				MiddleDrag = newCursor => {
+					DurationX = startX - (newCursor.X - startCursor.X) * DurationW / ClientSize.Width;
+					var play = MaxDurationW - DurationW;
+					if (DurationX <    0) DurationX = 0;
+					if (DurationX > play) DurationX = play;
+				};
+				break;
+			}
+			base.OnMouseDown(e);
+		}
+
+		protected override void OnMouseMove(MouseEventArgs e)
+		{
+			if (MiddleDrag != null) MiddleDrag(e.Location);
+			base.OnMouseMove(e);
+		}
+
+		protected override void OnMouseUp(MouseEventArgs e)
+		{
+			switch (e.Button)
+			{
+			case MouseButtons.Middle: MiddleDrag = null; break;
+			}
+			base.OnMouseUp(e);
+		}
+
+		protected override void OnMouseCaptureChanged(EventArgs e)
+		{
+			MiddleDrag = null;
+			base.OnMouseCaptureChanged(e);
+		}
+
 		private void Application_Idle(object sender, System.EventArgs e)
 		{
 			Invalidate();
@@ -76,21 +134,9 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 		bool HelpOverlay		= false;
 		bool FullStacks			= false;
 		bool KeepWorst			= false;
-		long MaxDuration		= 1;
-
-		static string ToShortTime(long ticks)
-		{
-			var freq = Stopwatch.Frequency;
-			var s  = ticks * 1 / freq;
-			var ms = ticks * 1000 / freq;
-			var us = ticks * 1000000 / freq;
-			var ns = ticks * 1000000000 / freq;
-
-			if (s  > 9)	return (s .ToString("N0")+"s ").PadLeft(5+2, ' ');
-			if (ms > 9)	return (ms.ToString("N0")+"ms").PadLeft(5+2, ' ');
-			if (us > 9)	return (us.ToString("N0")+"us").PadLeft(5+2, ' ');
-						return (ns.ToString("N0")+"ns").PadLeft(5+2, ' ');
-		}
+		long MaxDurationW		= 1;
+		long DurationX			= 0;
+		long DurationW			= 1;
 
 		const uint Black		= 0xFF000000u;
 		const uint DarkBlue		= 0xFF000080u;
@@ -104,6 +150,7 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 				var s = TextRenderer.MeasureText(fx, rect.Text, font, new Size(10000,10000), textFormatFlags);
 				textArea = Rect.LTWH(textArea.LeftTop, new XY(s.Width, s.Height));
 			}
+			if (textArea.Right > ClientSize.Width*2) textArea.Right = ClientSize.Width*2; // Clamp when it gets so excessive
 			var bgArea = textArea.Inflated(rect.Padding);
 
 			if (rect.FillArgb != 0) using (var fill = new SolidBrush(Color.FromArgb(unchecked((int)rect.FillArgb)))) fx.FillRectangle(fill, bgArea.Left, bgArea.Top, bgArea.Width, bgArea.Height);
@@ -118,7 +165,9 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 				foreach (var thread in PerThreadInfo.All) lock (thread.Mutex) thread.ConfigForceStacks = FullStacks; // XXX: Awkward place for this.
 
 				using (Trace.Scope("Layout.Update")) if (UpdatingFlameBars) Layout.Update(PerThreadInfo.All, KeepWorst ? Layout.UpdateFlags.KeepThreadWorst : Layout.UpdateFlags.Default);
-				MaxDuration = Math.Max(MaxDuration, Layout.Duration);
+				var maxed = DurationW == MaxDurationW;
+				MaxDurationW = Math.Max(MaxDurationW, Layout.Duration);
+				if (maxed) DurationW = MaxDurationW;
 
 				var cursor = PointToClient(Cursor.Position);
 
@@ -129,8 +178,8 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 				Layout.Render(new Layout.RenderArgs()
 				{
 					Cursor = new XY(cursor.X, cursor.Y),
-					DurationX = 0,
-					DurationW = MaxDuration,
+					DurationX = DurationX,
+					DurationW = DurationW,
 					Target = Rect.LTWH(0,0,ClientSize.Width,ClientSize.Height),
 					RenderRect = rect => RenderRect(fx, rect),
 				});
@@ -138,10 +187,15 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 				if (HelpOverlay) RenderRect(fx, new Layout.TextRect()
 				{
 					Text
-						= "[F1]               Toggle this help display\n"
+						= "  Keyboard Controls:\n"
+						+ "[F1]               Toggle this help display\n"
 						+ "[F2]               Toggle capturing of full stack traces\n"
 						+ "[F3]               Toggle between keeping the worst capture of a thread and the most recent\n"
 						+ "[Space] [Pause]    Toggle updating of the flame graph\n"
+						+ "\n"
+						+ "  Mouse Controls:\n"
+						+ "[Mouse Wheel]      Zoom in/out\n"
+						+ "[Middle Drag]      Scroll\n"
 						.TrimEnd('\n'),
 					Area			= Rect.LTWH(10,10,0,0),
 					FillArgb		= DarkBlue,
