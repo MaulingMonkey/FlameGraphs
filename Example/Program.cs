@@ -51,7 +51,7 @@ namespace Example
 
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
-			Application.Run(new GdiFlameGraphDisplayForm());
+			Application.Run(new GdiFlameGraphDisplayForm() { AutoRefresh = true });
 		}
 	}
 }

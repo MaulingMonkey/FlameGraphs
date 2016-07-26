@@ -15,14 +15,29 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 	[System.ComponentModel.DesignerCategory("")]
 	public class GdiFlameGraphDisplayForm : Form
 	{
+		bool _AutoRefresh;
+
+		public bool AutoRefresh
+		{
+			get
+			{
+				return _AutoRefresh;
+			}
+			set
+			{
+				if (value == _AutoRefresh) return;
+				_AutoRefresh = value;
+				if (value)	Application.Idle += Application_Idle;
+				else		Application.Idle -= Application_Idle;
+			}
+		}
+
 		public GdiFlameGraphDisplayForm()
 		{
 			ClientSize		= new Size(800, 600);
 			DoubleBuffered	= true;
 			Font			= new Font("Consolas", 8);
 			Text			= "MaulingMonkey FlameGraphs";
-
-			Application.Idle += Application_Idle;
 		}
 
 		protected override void Dispose(bool disposing)
