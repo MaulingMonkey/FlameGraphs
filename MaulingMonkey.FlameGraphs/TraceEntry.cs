@@ -25,6 +25,6 @@ namespace MaulingMonkey.FlameGraphs
 		public long				Start;
 		public long				Stop;
 		public long				Duration { get { return Math.Max(0, Stop - Start); } }
-		public int				Depth;
+		public int				DepthIndex;
 	}
 }

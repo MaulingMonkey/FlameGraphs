@@ -24,7 +24,7 @@ namespace MaulingMonkey.FlameGraphs
 		{
 			var cti = PerThreadInfo.CurrentThread;
 			var traceI = cti.CurrentTrace.Count;
-			var depth = cti.CurrentDepth++;
+			var depth = ++cti.CurrentDepth;
 			if (depth > cti.CurrentMaxDepth) cti.CurrentMaxDepth = depth;
 			var stackTrace = cti.CurrentForceStacks ? new StackTrace(true) : null; // We don't skip any frames in case Scope is inlined.
 			var te = new TraceEntry()
@@ -35,7 +35,7 @@ namespace MaulingMonkey.FlameGraphs
 #else
 				Caller			= new CallSite(stackTrace),
 #endif
-				Depth			= depth,
+				DepthIndex			= depth-1,
 			};
 			cti.CurrentTrace.Add(te);
 
@@ -59,7 +59,7 @@ namespace MaulingMonkey.FlameGraphs
 		{
 			var cti = PerThreadInfo.CurrentThread;
 			var traceI = cti.CurrentTrace.Count;
-			var depth = cti.CurrentDepth++;
+			var depth = ++cti.CurrentDepth;
 			if (depth > cti.CurrentMaxDepth) cti.CurrentMaxDepth = depth;
 			var stackTrace = cti.CurrentForceStacks ? new StackTrace(true) : null; // We don't skip any frames in case Scope is inlined.
 			var te = new TraceEntry()
@@ -70,7 +70,7 @@ namespace MaulingMonkey.FlameGraphs
 #else
 				Caller			= new CallSite(stackTrace),
 #endif
-				Depth			= depth,
+				DepthIndex			= depth-1,
 			};
 			cti.CurrentTrace.Add(te);
 

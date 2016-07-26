@@ -26,8 +26,8 @@ namespace MaulingMonkey.FlameGraphs
 
 		public bool Contains(XY pos)
 		{
-			return (LeftTop.X <= pos.X && pos.X < RightBottom.X)
-				&& (LeftTop.Y <= pos.Y && pos.Y < RightBottom.Y);
+			return (Left <= pos.X && pos.X < Right)
+				&& (Top  <= pos.Y && pos.Y < Bottom);
 		}
 
 		static private bool Overlap(int min1, int max1, int min2, int max2) { return !(max1 < min2) && !(max2 < min1); }

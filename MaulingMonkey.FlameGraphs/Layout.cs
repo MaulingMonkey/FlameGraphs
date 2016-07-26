@@ -121,13 +121,13 @@ namespace MaulingMonkey.FlameGraphs
 				// Bars
 				var top = trace.FirstOrDefault();
 				var duration = args.DurationW;
-				y += (capture.Value.MaxDepth+1) * (barH + barHPad);
+				y += capture.Value.MaxDepth * (barH + barHPad);
 
 				foreach (var e in trace)
 				{
 					var l = formPad.X + (int)((e.Start - top.Start - args.DurationX) * formSize.X / args.DurationW);
 					var r = formPad.X + (int)((e.Stop  - top.Start - args.DurationX) * formSize.X / args.DurationW);
-					var b =                  (y - (e.Depth * (barH + barHPad)));
+					var b =                  (y - (e.DepthIndex * (barH + barHPad)));
 					var t =                  (b - barH);
 
 					var area			= Rect.LTRB(l,t,r,b);
