@@ -94,7 +94,10 @@ namespace MaulingMonkey.FlameGraphs
 			var y = formPad.Y;
 
 			Action<TextRect> rect = r => {
-				if (target.Intersects(r.Area)) args.RenderRect(r);
+				if (!target.Intersects(r.Area)) return;
+				if (r.Area.Size != XY.Zero && (r.Area.Width == 0 || r.Area.Height == 0)) return;
+
+				args.RenderRect(r);
 			};
 
 			TextRect? hover = null;
