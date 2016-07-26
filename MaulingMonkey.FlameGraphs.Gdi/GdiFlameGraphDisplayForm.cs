@@ -9,11 +9,17 @@ using System.Windows.Forms;
 
 namespace MaulingMonkey.FlameGraphs.Gdi
 {
+	/// <summary>
+	/// A quick and dirty flamegraphs viewer.
+	/// </summary>
 	[System.ComponentModel.DesignerCategory("")]
 	public class GdiFlameGraphDisplayForm : Form
 	{
 		bool _AutoRefresh;
 
+		/// <summary>
+		/// Automatically Refresh() the form whenever Application.Idle occurs.  May interfere with other idle triggers - feel free to disable and Refresh() yourself.
+		/// </summary>
 		public bool AutoRefresh
 		{
 			get
@@ -109,9 +115,9 @@ namespace MaulingMonkey.FlameGraphs.Gdi
 		{
 			Trace.Scope("OnPaint", () =>
 			{
-				foreach (var thread in Trace.Threads) lock (thread.Mutex) thread.ConfigForceStacks = FullStacks; // XXX: Awkward place for this.
+				foreach (var thread in PerThreadInfo.All) lock (thread.Mutex) thread.ConfigForceStacks = FullStacks; // XXX: Awkward place for this.
 
-				using (Trace.Scope("Layout.Update")) if (UpdatingFlameBars) Layout.Update(Trace.Threads, KeepWorst ? Layout.UpdateFlags.KeepThreadWorst : Layout.UpdateFlags.Default);
+				using (Trace.Scope("Layout.Update")) if (UpdatingFlameBars) Layout.Update(PerThreadInfo.All, KeepWorst ? Layout.UpdateFlags.KeepThreadWorst : Layout.UpdateFlags.Default);
 				MaxDuration = Math.Max(MaxDuration, Layout.Duration);
 
 				var cursor = PointToClient(Cursor.Position);

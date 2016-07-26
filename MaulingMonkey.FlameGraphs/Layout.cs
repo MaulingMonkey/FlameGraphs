@@ -24,7 +24,7 @@ namespace MaulingMonkey.FlameGraphs
 
 		readonly Dictionary<Thread,ThreadTraceCapture> Captures = new Dictionary<Thread, ThreadTraceCapture>();
 
-		internal void Update(IEnumerable<ThreadInfo> infos, UpdateFlags flags) {
+		internal void Update(IEnumerable<PerThreadInfo> infos, UpdateFlags flags) {
 		using (Trace.Scope("Layout.Update"))
 		{
 			var keepThreads = new HashSet<Thread>();
@@ -37,7 +37,7 @@ namespace MaulingMonkey.FlameGraphs
 					{
 						capture.Reset(info);
 					}
-					else if (capture.Trace.FirstOrDefault().Duration < info.LastTrace.FirstOrDefault().Duration)
+					else lock (info.Mutex) if (capture.Trace.FirstOrDefault().Duration < info.LastTrace.FirstOrDefault().Duration)
 					{
 						capture.Reset(info);
 					}
@@ -102,7 +102,7 @@ namespace MaulingMonkey.FlameGraphs
 
 			TextRect? hover = null;
 			foreach (var capture in Captures)
-			if (capture.Value.Trace.Count > 0)
+			if (capture.Value.Trace.Any())
 			{
 				var thread = capture.Key;
 				var trace = capture.Value.Trace;

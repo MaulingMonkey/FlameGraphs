@@ -39,8 +39,10 @@
     <Compile Include="Caller.cs" />
     <Compile Include="ITraceRecord.cs" />
     <Compile Include="Layout.cs" />
+    <Compile Include="PerThreadInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rect.cs" />
+    <Compile Include="ThreadTraceCapture.cs" />
     <Compile Include="Trace.cs" />
     <Compile Include="TraceEntry.cs" />
     <Compile Include="XY.cs" />

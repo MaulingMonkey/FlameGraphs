@@ -6,6 +6,9 @@ using System.Diagnostics;
 
 namespace MaulingMonkey.FlameGraphs
 {
+	/// <summary>
+	/// Simple rectangle.  Assumes Up/Left is negative, Down/Right is positive.
+	/// </summary>
 	[DebuggerDisplay("{Left},{Top} - {Right},{Bottom}")]
 	public struct Rect
 	{

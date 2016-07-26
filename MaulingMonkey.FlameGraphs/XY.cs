@@ -6,6 +6,9 @@ using System.Diagnostics;
 
 namespace MaulingMonkey.FlameGraphs
 {
+	/// <summary>
+	/// Simple X/Y position or dimension.
+	/// </summary>
 	[DebuggerDisplay("{X},{Y}")]
 	public struct XY
 	{
@@ -13,6 +16,9 @@ namespace MaulingMonkey.FlameGraphs
 
 		public int X, Y;
 
+		/// <summary>
+		/// (X,Y) = (0,0)
+		/// </summary>
 		public static readonly XY Zero = new XY(0,0);
 
 		public static XY operator+(XY lhs, XY rhs) { return new XY(lhs.X+rhs.X, lhs.Y+rhs.Y); }

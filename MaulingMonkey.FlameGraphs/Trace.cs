@@ -3,7 +3,6 @@
 // See the LICENSE.txt file in the project root for more information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -11,69 +10,8 @@ using System.Threading;
 
 namespace MaulingMonkey.FlameGraphs
 {
-	internal class ThreadInfo
-	{
-		// Immutable - should be safe to access from any thread
-		public readonly Thread				Thread				= Thread.CurrentThread;
-		public readonly object				Mutex				= new object();
-
-		// Thread shared - NOTE WELL: LOCK "Mutex" WHILE ACCESSING
-		public readonly List<TraceEntry>	LastTrace			= new List<TraceEntry>();
-		public int							LastMaxDepth		= 0;
-		public bool							ConfigForceStacks	= false;
-
-		// Thread local - NOTE WELL: ONLY ACCESS FROM THE SAME THREAD AS "Thread"
-		public readonly List<TraceEntry>	CurrentTrace		= new List<TraceEntry>();
-		public int							CurrentDepth		= 0;
-		public int							CurrentMaxDepth		= 0;
-		public bool							CurrentForceStacks	= false;
-	}
-
-	[DebuggerDisplay("{ThreadName} - {Trace.Count} trace")]
-	internal class ThreadTraceCapture
-	{
-		public readonly List<TraceEntry>	Trace = new List<TraceEntry>();
-		public string						ThreadName	{ get; private set; }
-		public Thread						Thread		{ get; private set; }
-		public int							MaxDepth	{ get; private set; }
-
-		public ThreadTraceCapture(ThreadInfo info)
-		{
-			Reset(info);
-		}
-
-		public void Reset(ThreadInfo info)
-		{
-			lock (info.Mutex)
-			{
-				Trace.Clear();
-				Trace.AddRange(info.LastTrace);
-				ThreadName	= info.Thread.Name;
-				Thread		= info.Thread;
-				MaxDepth	= info.LastMaxDepth;
-			}
-		}
-	}
-
 	public static class Trace
 	{
-		readonly static object Mutex = new object();
-		readonly static List<ThreadInfo> AllThreadInfos = new List<ThreadInfo>();
-
-		[ThreadStatic] static ThreadInfo _CurrentThreadInfo;
-		static ThreadInfo CurrentThreadInfo { get {
-			var cti = _CurrentThreadInfo;
-			if (cti == null)
-			{
-				lock (Mutex)
-				{
-					_CurrentThreadInfo = cti = new ThreadInfo();
-					AllThreadInfos.Add(cti);
-				}
-			}
-			return cti;
-		}}
-
 		public static void Scope
 			( string label
 			, Action action
@@ -84,7 +22,7 @@ namespace MaulingMonkey.FlameGraphs
 #endif
 			)
 		{
-			var cti = CurrentThreadInfo;
+			var cti = PerThreadInfo.CurrentThread;
 			var traceI = cti.CurrentTrace.Count;
 			var depth = cti.CurrentDepth++;
 			if (depth > cti.CurrentMaxDepth) cti.CurrentMaxDepth = depth;
@@ -119,7 +57,7 @@ namespace MaulingMonkey.FlameGraphs
 #endif
 			)
 		{
-			var cti = CurrentThreadInfo;
+			var cti = PerThreadInfo.CurrentThread;
 			var traceI = cti.CurrentTrace.Count;
 			var depth = cti.CurrentDepth++;
 			if (depth > cti.CurrentMaxDepth) cti.CurrentMaxDepth = depth;
@@ -142,11 +80,11 @@ namespace MaulingMonkey.FlameGraphs
 
 		public struct DisposeScope : IDisposable
 		{
-			readonly ThreadInfo	CTI;
-			readonly int		TraceI;
-			readonly TraceEntry	TraceEntry;
+			readonly PerThreadInfo	CTI;
+			readonly int			TraceI;
+			readonly TraceEntry		TraceEntry;
 
-			internal DisposeScope(ThreadInfo cti, int traceI, TraceEntry te)
+			internal DisposeScope(PerThreadInfo cti, int traceI, TraceEntry te)
 			{
 				CTI			= cti;
 				TraceI		= traceI;
@@ -167,11 +105,7 @@ namespace MaulingMonkey.FlameGraphs
 			}
 		}
 
-		internal static IEnumerable<ThreadInfo> Threads { get {
-			lock (Mutex) return AllThreadInfos.ToArray();
-		} }
-
-		static void MaybeSyncLastTrace(ThreadInfo cti)
+		static void MaybeSyncLastTrace(PerThreadInfo cti)
 		{
 			Debug.Assert(cti.Thread == Thread.CurrentThread);
 
