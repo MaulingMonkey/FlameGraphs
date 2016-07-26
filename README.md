@@ -14,6 +14,9 @@
 - [x] Control mode display
 - [ ] D3D9 / D3D11 overlays
 - [ ] GDI non-form control
+- [ ] Threshhold for full stack captures (e.g. only if duration > 100us)
+- [ ] Good option for selectively or globally disabling tracing (e.g. ScopeIf(...), EnablesScopesIf(...))
+- [ ] Keep hover tips in-window
 
 ## Screenshots
 
